@@ -1,0 +1,81 @@
+#include <pm2008_i2c.h>
+#include <LiquidCrystal_I2C.h>
+#include "DHT.h"       // DHT.h 라이브러리를 포함한다
+#include "MQ135.h" 
+
+#define ANALOGPIN A5    //  Define Analog PIN on Arduino Board
+#define RZERO 206.85    //  Define RZERO Calibration Value
+MQ135 gasSensor = MQ135(ANALOGPIN);
+
+#define DHTPIN 2      // DHT핀을 2번으로 정의한다(DATA핀)
+#define DHTTYPE DHT11  // DHT타입을 DHT11로 정의한다
+DHT dht(DHTPIN, DHTTYPE);  // DHT설정 - dht (디지털2, dht11)
+
+LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+PM2008_I2C pm2008_i2c;
+
+void setupMQ135() {
+  float rzero = gasSensor.getRZero();
+  delay(500);
+  Serial.print("MQ135 RZERO Calibration Value : ");
+  Serial.println(rzero);
+}
+void setupLCD() {
+  // I2C LCD를 초기화 합니다..
+  lcd.init();
+  // I2C LCD의 백라이트를 켜줍니다.
+  lcd.backlight();
+}
+
+void setupPM2008() {
+  pm2008_i2c.begin();
+  pm2008_i2c.command();
+  delay(1000);
+}
+
+void setup() {
+  // put your setup code here, to run once:
+  
+  Serial.begin(9600);
+  setupLCD();
+  setupPM2008();
+  setupMQ135();
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+
+  int h = dht.readHumidity();  // 변수 h에 습도 값을 저장 
+  int t = dht.readTemperature();  // 변수 t에 온도 값을 저장
+
+  int ppm = (int)gasSensor.getPPM();
+  
+  uint8_t ret = pm2008_i2c.read();
+  if (ret == 0) {
+    lcdDisplay(pm2008_i2c, ppm, h, t);
+  } else {
+  }
+
+  delay(3000);
+  lcd.clear();
+}
+
+void lcdDisplay(PM2008_I2C pm2008, int ppm, int h, int t) {
+
+   char line1Buffer[20];
+   char line2Buffer[20];
+   
+   
+   lcd.setCursor(0,0);             
+   sprintf(line1Buffer , "PM: %03d/%03d/%03d", 
+      pm2008.pm1p0_tsi, pm2008.pm2p5_tsi, pm2008.pm10_tsi);
+   Serial.println(line1Buffer);
+   lcd.print(line1Buffer); 
+
+  lcd.setCursor(0,1);             
+   sprintf(line2Buffer , "PPM:%04d/H%02d/T%02d", 
+      ppm, h, t);
+   Serial.println(line2Buffer);
+   lcd.print(line2Buffer); 
+   
+}
